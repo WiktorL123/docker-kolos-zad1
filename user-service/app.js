@@ -29,6 +29,36 @@ app.get("/users", async (req, res) => {
     res.json(all);
 });
 
+
+// PUT /users/:id – edytuj użytkownika
+app.put("/users/:id", async (req, res) => {
+    const { id } = req.params;
+    const update = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: "Invalid user ID format" });
+    }
+
+    try {
+        const result = await users.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: update }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const updated = await users.findOne({ _id: new ObjectId(id) });
+        res.json(updated);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+
+});
+
+
+
 // POST /users
 app.post("/users", async (req, res) => {
     const user = req.body;

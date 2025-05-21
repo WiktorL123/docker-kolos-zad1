@@ -51,6 +51,25 @@ app.get("/courses", async (req, res) => {
     }
 });
 
+// PUT /courses/:id – edytuj kurs
+app.put("/courses/:id", async (req, res) => {
+    const { id } = req.params;
+    const { title, description } = req.body;
+    try {
+        const result = await pool.query(
+            "UPDATE courses SET title = $1, description = $2 WHERE id = $3 RETURNING *",
+            [title, description, id]
+        );
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Course not found" });
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
 // POST /courses – dodaj nowy kurs
 app.post("/courses", async (req, res) => {
     const { title, description } = req.body;
