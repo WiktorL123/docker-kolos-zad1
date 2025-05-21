@@ -1,0 +1,144 @@
+services:
+  postgres:
+    image: postgres:15
+    env_file:
+      - ../.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    secrets:
+      - db_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - ${POSTGRES_PORT}:${POSTGRES_PORT}
+    networks:
+      - db_net
+    restart: on-failure
+    mem_limit: 512m
+    cpus: 0.50
+
+  mongo:
+    image: mongo:6-jammy
+    env_file:
+      - ../.env
+    ports:
+      - ${MONGO_PORT}:${MONGO_PORT}
+    volumes:
+      - mongodata:/data/db
+    networks:
+      - db_net
+    restart: on-failure
+    mem_limit: 512m
+    cpus: 0.50
+    healthcheck:
+      test: [ "CMD", "mongo", "--eval", "db.runCommand({ ping: 1 })" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+
+
+
+  api-gateway:
+    image: nginx:alpine
+    volumes:
+      - ../gateway/default.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - ${API_GATEWAY_PORT}:${API_GATEWAY_PORT}
+    depends_on:
+      course-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    networks:
+      - frontend_net
+      - backend_net
+    restart: on-failure
+    mem_limit: 128m
+    cpus: 0.25
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:${API_GATEWAY_PORT}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+
+  course-service:
+    build:
+      context: ../course-service
+      dockerfile: Dockerfile
+      args:
+        BASE_IMAGE: node:20-alpine
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: development
+    ports:
+      - ${COURSE_SERVICE_PORT}:${COURSE_SERVICE_PORT}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend_net
+      - db_net
+    restart: on-failure
+    mem_limit: 256m
+    cpus: 0.25
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:${COURSE_SERVICE_PORT}/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+
+  user-service:
+    build:
+      context: ../user-service
+      dockerfile: Dockerfile
+      args:
+        BASE_IMAGE: node:20-alpine
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: development
+    ports:
+      - ${USER_SERVICE_PORT}:${USER_SERVICE_PORT}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - backend_net
+      - db_net
+    restart: on-failure
+    mem_limit: 256m
+    cpus: 0.25
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:${USER_SERVICE_PORT}/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+
+volumes:
+  pgdata:
+  mongodata:
+
+networks:
+  db_net:
+  frontend_net:
+  backend_net:
+
+secrets:
+  db_password:
+    file: ../secrets/db_password.txt
