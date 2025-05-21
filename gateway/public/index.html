@@ -3,9 +3,40 @@
 <head>
     <meta charset="UTF-8" />
     <title>Docker Kolos</title>
+    <style>
+        body { font-family: sans-serif; padding: 2em; }
+        pre { background: #f4f4f4; padding: 1em; border: 1px solid #ccc; }
+    </style>
 </head>
 <body>
 <h1>Witaj w Platformie Kursowej! 🚀</h1>
 <p>To jest wersja statyczna z Nginx.</p>
+
+<button onclick="fetchData()">Pobierz dane</button>
+
+<h2>Użytkownicy:</h2>
+<pre id="users">Brak danych...</pre>
+
+<h2>Kursy:</h2>
+<pre id="courses">Brak danych...</pre>
+
+<script>
+    async function fetchData() {
+        try {
+            const [usersRes, coursesRes] = await Promise.all([
+                fetch("/users"),
+                fetch("/courses")
+            ]);
+
+            const users = await usersRes.json();
+            const courses = await coursesRes.json();
+
+            document.getElementById("users").textContent = JSON.stringify(users, null, 2);
+            document.getElementById("courses").textContent = JSON.stringify(courses, null, 2);
+        } catch (err) {
+            alert("Błąd podczas pobierania danych: " + err.message);
+        }
+    }
+</script>
 </body>
 </html>
